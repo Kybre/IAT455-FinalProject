@@ -2,12 +2,14 @@ import java.awt.Color;
 import java.awt.Font;
 import java.awt.Frame;
 import java.awt.Graphics;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
 import java.io.File;
 
 import javax.imageio.ImageIO;
 
-public class ImageQuilter extends Frame {
+class ImageQuilter extends Frame {
 
 	BufferedImage srcImage, patternImage, finalImage;
 	int width, height;
@@ -15,24 +17,35 @@ public class ImageQuilter extends Frame {
 	public ImageQuilter() {
 		//load images
 		try {
-			srcImage = ImageIO.read(new File("")); //fill in file values later
-			patternImage = ImageIO.read(new File(""));
+			srcImage = ImageIO.read(new File("background.jpg")); //fill in file values later
+			patternImage = ImageIO.read(new File("statue.jpg"));
 
 		} catch (Exception e) {
 			System.out.println("Cannot load the provided image");
 		}
+		this.setTitle("Image Quilter");
+		this.setVisible(true);
 		
 		width = srcImage.getWidth();
 		height = srcImage.getHeight();
+		
+		//Anonymous inner-class listener to terminate program
+		this.addWindowListener(
+			new WindowAdapter(){//anonymous class definition
+				public void windowClosing(WindowEvent e){
+					System.exit(0);//terminate the program
+				}//end windowClosing()
+			}//end WindowAdapter
+		);//end addWindowListener
 	}
 	
 	public void paint(Graphics g) {
 		
 		//if working with different images, this may need to be adjusted
-		int w = width; 
-		int h = height;
+		int w = width/2; 
+		int h = height/2;
 
-		this.setSize(w * 5 + 300, h * 3 + 150);
+		this.setSize(w * 2 + 300, h * 2 + 150);
 
 		g.drawImage(srcImage,25,50,w, h,this);
 	    g.drawImage(patternImage, 25+w+45, 50, w, h,this);

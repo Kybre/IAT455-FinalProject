@@ -34,7 +34,6 @@ public class Functions {
 	}
 	
 	public BufferedImage combineImages(BufferedImage src1, BufferedImage src2, Operations op) {
-
 		if (src1.getType() != src2.getType()) {
 			System.out.println("Source Images should be of the same type");
 			return null;
@@ -71,7 +70,6 @@ public class Functions {
     			result.setRGB(i, j, new Color(newR, newG, newB).getRGB());
     		}
     	}
-		
 		return result;
 	}
 	
