@@ -39,23 +39,47 @@ class ImageQuilter extends Frame {
 		);//end addWindowListener
 	}
 	
+	private BufferedImage createQuiltedImage() {
+	    int blockSize = 20;
+	    int gridWidth = width / blockSize;
+	    int gridHeight = height / blockSize;
+	    BufferedImage quiltedImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+	    Graphics g = quiltedImage.getGraphics();
+
+	    for (int x = 0; x < gridWidth; x++) {
+	        for (int y = 0; y < gridHeight; y++) {
+	            int srcX = (int) (Math.random() * gridWidth) * blockSize;
+	            int srcY = (int) (Math.random() * gridHeight) * blockSize;
+	            g.drawImage(srcImage, x * blockSize, y * blockSize, x * blockSize + blockSize, y * blockSize + blockSize,
+	                        srcX, srcY, srcX + blockSize, srcY + blockSize, null);
+	        }
+	    }
+
+	    g.dispose();
+	    return quiltedImage;
+	}
+	
+	
+	
+	
+	
 	public void paint(Graphics g) {
-		
-		//if working with different images, this may need to be adjusted
-		int w = width/2; 
-		int h = height/2;
+	    int w = width / 2;
+	    int h = height / 2;
 
-		this.setSize(w * 2 + 300, h * 2 + 150);
+	    this.setSize(w * 3 + 100, h + 150);
 
-		g.drawImage(srcImage,25,50,w, h,this);
-	    g.drawImage(patternImage, 25+w+45, 50, w, h,this);
+	    g.drawImage(srcImage, 25, 50, w, h, this);
+	    BufferedImage quiltedImage = createQuiltedImage();
+	    g.drawImage(quiltedImage, 25 + w + 45, 50, w, h, this);
 
 	    g.setColor(Color.BLACK);
-	    Font f1 = new Font("Verdana", Font.PLAIN, 13); 
-	    g.setFont(f1); 
-	    g.drawString("Original Image", 25, 45); 
-	    g.drawString("Pattern Image",25+w+45, 45); 
+	    Font f1 = new Font("Verdana", Font.PLAIN, 13);
+	    g.setFont(f1);
+	    g.drawString("Original Image", 25, 45);
+	    g.drawString("Random Blocks", 25 + w + 45, 45);
 	}
+
 	
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
