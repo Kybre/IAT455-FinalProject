@@ -91,9 +91,9 @@ class ImageQuilter extends JFrame implements ActionListener {
 	
 	private BufferedImage createQuiltedImage() {
 	    int blockSize = 20;
-	    int gridWidth = width / blockSize;
-	    int gridHeight = height / blockSize;
-	    BufferedImage quiltedImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+	    int gridWidth = srcImage.getWidth() / blockSize;
+	    int gridHeight = srcImage.getHeight() / blockSize;
+	    BufferedImage quiltedImage = new BufferedImage(srcImage.getWidth(), srcImage.getHeight(), BufferedImage.TYPE_INT_RGB);
 	    Graphics g = quiltedImage.getGraphics();
 
 	    for (int x = 0; x < gridWidth; x++) {
@@ -108,10 +108,6 @@ class ImageQuilter extends JFrame implements ActionListener {
 	    g.dispose();
 	    return quiltedImage;
 	}
-	
-	
-	
-	
 	
 	public void paint(Graphics g) {
 		super.paint(g);
@@ -131,7 +127,7 @@ class ImageQuilter extends JFrame implements ActionListener {
 		
 		g.drawImage(srcImage, 25, 140, sw, sh, this);
 	    g.drawImage(patternImage, sw+75, 140, pw, ph, this);
-	    g.drawImage(srcImage, sw+pw+125, 140, sw, sh, this); //replace with final image
+	    g.drawImage(createQuiltedImage(), sw+pw+125, 140, sw, sh, this); //replace with final image
 
 	    g.setColor(Color.BLACK);
 	    Font f1 = new Font("Verdana", Font.PLAIN, 13); 
