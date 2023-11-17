@@ -69,7 +69,7 @@ class ImageQuilter extends JFrame implements ActionListener {
 			File patternFile = uploadFile();
 			if(patternFile != null) {
 				try {
-					srcImage = ImageIO.read(patternFile);
+					patternImage = ImageIO.read(patternFile);
 				} catch (Exception ex) {
 					System.out.println("Cannot load the provided image");
 				}
