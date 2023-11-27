@@ -252,7 +252,7 @@ class ImageQuilter extends JFrame implements ActionListener {
         Graphics g = quiltedImage.getGraphics();
         
         double initialTolerance = 3;  // Initial tolerance factor 
-        double toleranceReduction = 0.1;  // Reduction factor for each iteration
+        double toleranceReduction = 0.2;  // Reduction factor for each iteration
         
         
 
