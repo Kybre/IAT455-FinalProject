@@ -15,6 +15,7 @@ import javax.imageio.ImageIO;
 import javax.swing.JButton;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
+import javax.swing.JTextField;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -28,9 +29,10 @@ class ImageQuilter extends JFrame implements ActionListener {
     double screenWidth, screenHeight;
     int srcWidth, srcHeight, patternWidth, patternHeight;
     Dimension screenSize;
-    JButton srcButton, patternButton;
+    JButton srcButton, patternButton, updateButton;
+    JTextField blockSizeText, overlapText;
     
-    int blockSize = 20;
+    int blockSize = 20, overlapPercent = 10;
 
 	
 	public ImageQuilter() {
@@ -48,20 +50,30 @@ class ImageQuilter extends JFrame implements ActionListener {
 		//buttons
 		srcButton = new JButton("Upload Source");
 		patternButton = new JButton("Upload Pattern");
+		updateButton = new JButton("Update Parameters");
+		blockSizeText = new JTextField(Integer.toString(blockSize));
+		overlapText = new JTextField(Integer.toString(overlapPercent));
 		
 		srcButton.addActionListener(this);
 		patternButton.addActionListener(this);
+		updateButton.addActionListener(this);
 		
 		this.setLayout(null);
 		
 		this.add(srcButton);
 		this.add(patternButton);
+		this.add(updateButton);
+		this.add(blockSizeText);
+		this.add(overlapText);
 		
 		screenSize = Toolkit.getDefaultToolkit().getScreenSize();
 		this.setSize(screenSize);
 	}
 	
 	public void actionPerformed(ActionEvent e) {
+		blockSize = Integer.parseInt(blockSizeText.getText());
+		overlapPercent = Integer.parseInt(overlapText.getText());
+		
 		if(e.getSource() == srcButton) {
 			File srcFile = uploadFile();
 			if(srcFile != null) {
@@ -208,8 +220,24 @@ class ImageQuilter extends JFrame implements ActionListener {
 	public void paint(Graphics g) {
 		super.paint(g);
 		
+	    g.setColor(Color.BLACK);
+	    Font f1 = new Font("Verdana", Font.PLAIN, 13); 
+	    g.setFont(f1); 
+		
 		srcButton.setBounds(25, 25, 125, 25);
+		srcButton.setBackground(Color.gray.brighter());
+		
 		patternButton.setBounds(175, 25, 125, 25);
+		patternButton.setBackground(Color.gray.brighter());
+		
+		g.drawString("Block Size:", 350, 70);
+		blockSizeText.setBounds(425, 25, 50, 25);
+		
+		g.drawString("Overlap %:", 500, 70);
+		overlapText.setBounds(575, 25, 50, 25);
+		
+		updateButton.setBounds(screenSize.width - 250, 25, 200, 25);
+		updateButton.setBackground(new Color(164,213,227));
 		
 		g.setColor(new Color(20,20,20));
 		g.drawLine(25, 100, (int)screenSize.getWidth()-25, 100);
@@ -227,10 +255,6 @@ class ImageQuilter extends JFrame implements ActionListener {
 	    
 	    g.drawImage(recreatePatternImage(), sw+pw+125, 540, sw, sh, this);
 	    
-	    
-	    g.setColor(Color.BLACK);
-	    Font f1 = new Font("Verdana", Font.PLAIN, 13); 
-	    g.setFont(f1); 
 	    g.drawString("Original Image", 25, 125); 
 	    g.drawString("Pattern", sw+75, 125); 
 	    g.drawString("Result", sw+pw+125, 125); 
