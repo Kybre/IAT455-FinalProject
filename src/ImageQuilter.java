@@ -11,20 +11,27 @@ import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-
 import javax.imageio.ImageIO;
 import javax.swing.JButton;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Comparator;
 
 class ImageQuilter extends JFrame implements ActionListener {
 
-	BufferedImage srcImage, patternImage, finalImage;
-	double screenWidth, screenHeight;
-	int srcWidth, srcHeight, patternWidth, patternHeight;
-	Dimension screenSize;
-	JButton srcButton, patternButton;
+    BufferedImage srcImage, patternImage, finalImage;
+    BufferedImage[][] imageBlocks; // Array to store image blocks
+    double screenWidth, screenHeight;
+    int srcWidth, srcHeight, patternWidth, patternHeight;
+    Dimension screenSize;
+    JButton srcButton, patternButton;
+    
+    int blockSize = 20;
+
 	
 	public ImageQuilter() {
 		//load images
@@ -90,24 +97,113 @@ class ImageQuilter extends JFrame implements ActionListener {
 	}
 	
 	private BufferedImage createQuiltedImage() {
-	    int blockSize = 20;
-	    int gridWidth = srcImage.getWidth() / blockSize;
-	    int gridHeight = srcImage.getHeight() / blockSize;
-	    BufferedImage quiltedImage = new BufferedImage(srcImage.getWidth(), srcImage.getHeight(), BufferedImage.TYPE_INT_RGB);
-	    Graphics g = quiltedImage.getGraphics();
+        int gridWidth = srcImage.getWidth() / blockSize;
+        int gridHeight = srcImage.getHeight() / blockSize;
+        imageBlocks = new BufferedImage[gridWidth][gridHeight]; // Initialize the array
 
-	    for (int x = 0; x < gridWidth; x++) {
-	        for (int y = 0; y < gridHeight; y++) {
-	            int srcX = (int) (Math.random() * gridWidth) * blockSize;
-	            int srcY = (int) (Math.random() * gridHeight) * blockSize;
-	            g.drawImage(srcImage, x * blockSize, y * blockSize, x * blockSize + blockSize, y * blockSize + blockSize,
-	                        srcX, srcY, srcX + blockSize, srcY + blockSize, null);
-	        }
-	    }
+        BufferedImage quiltedImage = new BufferedImage(srcImage.getWidth(), srcImage.getHeight(), BufferedImage.TYPE_INT_RGB);
+        Graphics g = quiltedImage.getGraphics();
 
-	    g.dispose();
-	    return quiltedImage;
-	}
+        for (int x = 0; x < gridWidth; x++) {
+            for (int y = 0; y < gridHeight; y++) {
+                int srcX = (int) (Math.random() * gridWidth) * blockSize;
+                int srcY = (int) (Math.random() * gridHeight) * blockSize;
+
+                // Extracting the block and storing it in the array
+                imageBlocks[x][y] = srcImage.getSubimage(srcX, srcY, blockSize, blockSize);
+
+                g.drawImage(imageBlocks[x][y], x * blockSize, y * blockSize, null);
+            }
+        }
+
+        g.dispose();
+
+        List<BufferedImage> sortedBlocks = sortBlocksByBrightness();
+        
+        return assembleSortedBlocks(sortedBlocks, gridWidth, gridHeight, blockSize);
+        
+    }
+	
+	private List<BufferedImage> sortBlocksByBrightness() {
+        List<BufferedImage> blocks = new ArrayList<>();
+        for (BufferedImage[] row : imageBlocks) {
+            blocks.addAll(Arrays.asList(row));
+        }
+
+        blocks.sort(Comparator.comparingDouble(this::calculateAverageBrightness));
+        return blocks;
+    }
+
+	
+	private double calculateAverageBrightness(BufferedImage block) {
+        long sum = 0;
+        for (int x = 0; x < block.getWidth(); x++) {
+            for (int y = 0; y < block.getHeight(); y++) {
+                Color color = new Color(block.getRGB(x, y));
+                int brightness = (color.getRed() + color.getGreen() + color.getBlue()) / 3;
+                sum += brightness;
+            }
+        }
+        return sum / (double) (block.getWidth() * block.getHeight());
+    }
+
+    private BufferedImage assembleSortedBlocks(List<BufferedImage> blocks, int gridWidth, int gridHeight, int blockSize) {
+        BufferedImage newImage = new BufferedImage(srcImage.getWidth(), srcImage.getHeight(), BufferedImage.TYPE_INT_RGB);
+        Graphics g = newImage.getGraphics();
+
+        int index = 0;
+        for (int x = 0; x < gridWidth; x++) {
+            for (int y = 0; y < gridHeight; y++) {
+                BufferedImage block = blocks.get(index++);
+                g.drawImage(block, x * blockSize, y * blockSize, null);
+            }
+        }
+
+        g.dispose();
+        return newImage;
+    }
+    
+    
+    
+    private BufferedImage recreatePatternImage() {
+        int gridWidth = patternImage.getWidth() / blockSize;
+        int gridHeight = patternImage.getHeight() / blockSize;
+
+        BufferedImage newImage = new BufferedImage(patternImage.getWidth(), patternImage.getHeight(), BufferedImage.TYPE_INT_RGB);
+        Graphics g = newImage.getGraphics();
+
+        for (int x = 0; x < gridWidth; x++) {
+            for (int y = 0; y < gridHeight; y++) {
+                BufferedImage block = patternImage.getSubimage(x * blockSize, y * blockSize, blockSize, blockSize);
+                double brightness = calculateAverageBrightness(block);
+                BufferedImage closestMatch = findClosestMatch(brightness);
+                g.drawImage(closestMatch, x * blockSize, y * blockSize, null);
+            }
+        }
+
+        g.dispose();
+        return newImage;
+    }
+    
+    private BufferedImage findClosestMatch(double targetBrightness) {
+        BufferedImage closest = null;
+        double minDiff = Double.MAX_VALUE;
+
+        for (BufferedImage[] row : imageBlocks) {
+            for (BufferedImage block : row) {
+                double blockBrightness = calculateAverageBrightness(block);
+                double diff = Math.abs(blockBrightness - targetBrightness);
+
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    closest = block;
+                }
+            }
+        }
+
+        return closest;
+    }
+	
 	
 	public void paint(Graphics g) {
 		super.paint(g);
@@ -128,7 +224,10 @@ class ImageQuilter extends JFrame implements ActionListener {
 		g.drawImage(srcImage, 25, 140, sw, sh, this);
 	    g.drawImage(patternImage, sw+75, 140, pw, ph, this);
 	    g.drawImage(createQuiltedImage(), sw+pw+125, 140, sw, sh, this); //replace with final image
-
+	    
+	    g.drawImage(recreatePatternImage(), sw+pw+125, 540, sw, sh, this);
+	    
+	    
 	    g.setColor(Color.BLACK);
 	    Font f1 = new Font("Verdana", Font.PLAIN, 13); 
 	    g.setFont(f1); 
