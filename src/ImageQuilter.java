@@ -20,6 +20,7 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.Comparator;
 
 class ImageQuilter extends JFrame implements ActionListener {
@@ -215,6 +216,124 @@ class ImageQuilter extends JFrame implements ActionListener {
 
         return closest;
     }
+    
+    
+    private BufferedImage getRightOverlap(BufferedImage block) {
+        int overlapWidth = block.getWidth() / 4;
+        return block.getSubimage(block.getWidth() - overlapWidth, 0, overlapWidth, block.getHeight());
+    }
+
+    private BufferedImage getLeftOverlap(BufferedImage block) {
+        int overlapWidth = block.getWidth() / 4;
+        return block.getSubimage(0, 0, overlapWidth, block.getHeight());
+    }
+
+    private BufferedImage getBottomOverlap(BufferedImage block) {
+        int overlapHeight = block.getHeight() / 4;
+        return block.getSubimage(0, block.getHeight() - overlapHeight, block.getWidth(), overlapHeight);
+    }
+
+    private BufferedImage getTopOverlap(BufferedImage block) {
+        int overlapHeight = block.getHeight() / 4;
+        return block.getSubimage(0, 0, block.getWidth(), overlapHeight);
+    }
+
+    
+    private BufferedImage createQuiltedImage2() {
+        int gridWidth = srcImage.getWidth() / blockSize;
+        int gridHeight = srcImage.getHeight() / blockSize;
+        BufferedImage quiltedImage = new BufferedImage(srcImage.getWidth(), srcImage.getHeight(), BufferedImage.TYPE_INT_RGB);
+        Graphics g = quiltedImage.getGraphics();
+        
+        double initialTolerance = 3;  // Initial tolerance factor (e.g., 110% of the best SSD)
+        double toleranceReduction = 0.1;  // Reduction factor for each iteration
+
+        BufferedImage[][] selectedBlocks = new BufferedImage[gridHeight][gridWidth];
+
+        for (int y = 0; y < gridHeight; y++) {
+            for (int x = 0; x < gridWidth; x++) {
+                BufferedImage chosenBlock = null;
+                double tolerance = initialTolerance;
+
+                while (chosenBlock == null) {
+                    List<BufferedImage> suitableBlocks = new ArrayList<>();
+                    double minSSD = Double.MAX_VALUE;
+
+                    for (BufferedImage[] row : imageBlocks) {
+                        for (BufferedImage block : row) {
+                            double ssdLeft = 0.0, ssdTop = 0.0;
+
+                            if (x > 0) {  // Calculate SSD for left overlap
+                                BufferedImage leftOverlap = getRightOverlap(selectedBlocks[y][x - 1]);
+                                BufferedImage currentLeftOverlap = getLeftOverlap(block);
+                                ssdLeft = calculateOverlapSSD(leftOverlap, currentLeftOverlap, leftOverlap.getWidth());
+                            }
+
+                            if (y > 0) {  // Calculate SSD for top overlap
+                                BufferedImage topOverlap = getBottomOverlap(selectedBlocks[y - 1][x]);
+                                BufferedImage currentTopOverlap = getTopOverlap(block);
+                                ssdTop = calculateOverlapSSD(topOverlap, currentTopOverlap, topOverlap.getHeight());
+                            }
+
+                            double combinedSSD = ssdLeft + ssdTop;
+                            if (combinedSSD < minSSD * tolerance) {
+                                if (combinedSSD < minSSD) {
+                                    minSSD = combinedSSD;
+                                    suitableBlocks.clear();
+                                }
+                                suitableBlocks.add(block);
+                            }
+                        }
+                    }
+
+                    if (!suitableBlocks.isEmpty()) {
+                        int randomIndex = (int) (Math.random() * suitableBlocks.size());
+                        chosenBlock = suitableBlocks.get(randomIndex);
+                    } else {
+                        tolerance -= toleranceReduction;
+                        if (tolerance <= 0) {
+                            throw new RuntimeException("No suitable block found within tolerance");
+                        }
+                    }
+                }
+
+                selectedBlocks[y][x] = chosenBlock;
+                g.drawImage(chosenBlock, x * blockSize - blockSize / 4, y * blockSize, null);
+            }
+        }
+
+        g.dispose();
+        return quiltedImage;
+    
+    }
+
+    
+    private double calculateOverlapSSD(BufferedImage block1, BufferedImage block2, int overlapWidth) {
+        double ssd = 0.0;
+
+        for (int x = 0; x < overlapWidth; x++) {
+            for (int y = 0; y < block1.getHeight(); y++) {
+                int rgb1 = block1.getRGB(x, y);
+                int rgb2 = block2.getRGB(x, y);
+
+                int red1 = (rgb1 >> 16) & 0xff;
+                int green1 = (rgb1 >> 8) & 0xff;
+                int blue1 = (rgb1) & 0xff;
+
+                int red2 = (rgb2 >> 16) & 0xff;
+                int green2 = (rgb2 >> 8) & 0xff;
+                int blue2 = (rgb2) & 0xff;
+
+                ssd += Math.pow(red1 - red2, 2);
+                ssd += Math.pow(green1 - green2, 2);
+                ssd += Math.pow(blue1 - blue2, 2);
+            }
+        }
+
+        return ssd;
+    }
+
+    
 	
 	
 	public void paint(Graphics g) {
@@ -251,7 +370,8 @@ class ImageQuilter extends JFrame implements ActionListener {
 		
 		g.drawImage(srcImage, 25, 140, sw, sh, this);
 	    g.drawImage(patternImage, sw+75, 140, pw, ph, this);
-	    g.drawImage(createQuiltedImage(), sw+pw+125, 140, sw, sh, this); //replace with final image
+	    g.drawImage(createQuiltedImage(), sw+pw+125, 140, sw, sh, this); 
+	    g.drawImage(createQuiltedImage2(), sw, 540, sw, sh, this); 
 	    
 	    g.drawImage(recreatePatternImage(), sw+pw+125, 540, sw, sh, this);
 	    
