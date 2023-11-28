@@ -20,6 +20,7 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.Comparator;
 
 class ImageQuilter extends JFrame implements ActionListener {
@@ -31,6 +32,9 @@ class ImageQuilter extends JFrame implements ActionListener {
     Dimension screenSize;
     JButton srcButton, patternButton, updateButton;
     JTextField blockSizeText, overlapText;
+
+    private double[][] costs;
+    private TwoDLoc[][] path;
     
     int blockSize = 20, overlapPercent = 10;
 
@@ -57,6 +61,9 @@ class ImageQuilter extends JFrame implements ActionListener {
 		srcButton.addActionListener(this);
 		patternButton.addActionListener(this);
 		updateButton.addActionListener(this);
+		
+		
+		
 		
 		this.setLayout(null);
 		
@@ -215,6 +222,301 @@ class ImageQuilter extends JFrame implements ActionListener {
 
         return closest;
     }
+    
+    
+    private BufferedImage getRightOverlap(BufferedImage block) {
+        int overlapWidth = block.getWidth() / 4;
+        return block.getSubimage(block.getWidth() - overlapWidth, 0, overlapWidth, block.getHeight());
+    }
+
+    private BufferedImage getLeftOverlap(BufferedImage block) {
+        int overlapWidth = block.getWidth() / 4;
+        return block.getSubimage(0, 0, overlapWidth, block.getHeight());
+    }
+
+    private BufferedImage getBottomOverlap(BufferedImage block) {
+        int overlapHeight = block.getHeight() / 4;
+        return block.getSubimage(0, block.getHeight() - overlapHeight, block.getWidth(), overlapHeight);
+    }
+
+    private BufferedImage getTopOverlap(BufferedImage block) {
+        int overlapHeight = block.getHeight() / 4;
+        return block.getSubimage(0, 0, block.getWidth(), overlapHeight);
+    }
+
+    
+    private BufferedImage createQuiltedImage2() {
+        int gridWidth = srcImage.getWidth() / blockSize;
+        int gridHeight = srcImage.getHeight() / blockSize;
+        BufferedImage quiltedImage = new BufferedImage(srcImage.getWidth(), srcImage.getHeight(), BufferedImage.TYPE_INT_RGB);
+        Graphics g = quiltedImage.getGraphics();
+        
+        double initialTolerance = 3;  // Initial tolerance factor 
+        double toleranceReduction = 0.2;  // Reduction factor for each iteration
+        
+        
+
+        BufferedImage[][] selectedBlocks = new BufferedImage[gridHeight][gridWidth];
+
+        for (int y = 0; y < gridHeight; y++) {
+            for (int x = 0; x < gridWidth; x++) {
+                BufferedImage chosenBlock = null;
+                double tolerance = initialTolerance;
+
+                while (chosenBlock == null) {
+                    List<BufferedImage> suitableBlocks = new ArrayList<>();
+                    double minSSD = Double.MAX_VALUE;
+
+                    for (BufferedImage[] row : imageBlocks) {
+                        for (BufferedImage block : row) {
+                            double ssdLeft = 0.0, ssdTop = 0.0;
+
+                            if (x > 0) {  // Calculate SSD for left overlap
+                                BufferedImage leftOverlap = getRightOverlap(selectedBlocks[y][x - 1]);
+                                BufferedImage currentLeftOverlap = getLeftOverlap(block);
+                                ssdLeft = calculateOverlapSSD(leftOverlap, currentLeftOverlap, leftOverlap.getWidth());
+                            }
+
+                            if (y > 0) {  // Calculate SSD for top overlap
+                                BufferedImage topOverlap = getBottomOverlap(selectedBlocks[y - 1][x]);
+                                BufferedImage currentTopOverlap = getTopOverlap(block);
+                                ssdTop = calculateOverlapSSD(topOverlap, currentTopOverlap, topOverlap.getHeight());
+                            }
+
+                            double combinedSSD = ssdLeft + ssdTop;
+                            if (combinedSSD < minSSD * tolerance) {
+                                if (combinedSSD < minSSD) {
+                                    minSSD = combinedSSD;
+                                    suitableBlocks.clear();
+                                }
+                                suitableBlocks.add(block);
+                            }
+                        }
+                    }
+
+                    if (!suitableBlocks.isEmpty()) {
+                        int randomIndex = (int) (Math.random() * suitableBlocks.size());
+                        chosenBlock = suitableBlocks.get(randomIndex);
+                    } else {
+                        tolerance -= toleranceReduction;
+                        if (tolerance <= 0) {
+                            throw new RuntimeException("No suitable block found within tolerance");
+                        }
+                    }
+                }
+
+                selectedBlocks[y][x] = chosenBlock;
+                g.drawImage(chosenBlock, x * blockSize - blockSize / 4, y * blockSize, null);
+            }
+        }
+
+        g.dispose();
+        return quiltedImage;
+    
+    }
+
+    
+    private double calculateOverlapSSD(BufferedImage block1, BufferedImage block2, int overlapWidth) {
+        double ssd = 0.0;
+
+        for (int x = 0; x < overlapWidth; x++) {
+            for (int y = 0; y < block1.getHeight(); y++) {
+                int rgb1 = block1.getRGB(x, y);
+                int rgb2 = block2.getRGB(x, y);
+
+                int red1 = (rgb1 >> 16) & 0xff;
+                int green1 = (rgb1 >> 8) & 0xff;
+                int blue1 = (rgb1) & 0xff;
+
+                int red2 = (rgb2 >> 16) & 0xff;
+                int green2 = (rgb2 >> 8) & 0xff;
+                int blue2 = (rgb2) & 0xff;
+
+                ssd += Math.pow(red1 - red2, 2);
+                ssd += Math.pow(green1 - green2, 2);
+                ssd += Math.pow(blue1 - blue2, 2);
+            }
+        }
+        return ssd;
+    }
+    
+    
+    
+    
+    
+    
+    
+    // Start step 3
+    // I don't know if any of this will work
+    
+    
+    
+    private BufferedImage stitchBlocks(BufferedImage block1, BufferedImage block2, boolean horizontal) {
+        // Calculate the costs for the overlap region
+        double[][] costs = calculateCostsForOverlap(block1, block2, horizontal);
+
+        // Find the minimum path in the overlap region
+        findMinPath(costs, horizontal); // Using integrated pathfinding
+        TwoDLoc bestSource = findBestSourceLoc(); // Start from the best source location
+
+        // The dimensions of the stitched image depend on how you want to combine the images
+        BufferedImage stitched = new BufferedImage(
+            block1.getWidth(), // Assuming stitching within the block width
+            block1.getHeight(), // Assuming stitching within the block height
+            BufferedImage.TYPE_INT_RGB);
+
+        Graphics g = stitched.getGraphics();
+
+        // Draw the first block entirely
+        g.drawImage(block1, 0, 0, null);
+
+        // Apply the stitching logic
+        TwoDLoc currentLoc = bestSource;
+        while (currentLoc != null) {
+            int x = currentLoc.getCol();
+            int y = currentLoc.getRow();
+
+            // Use the pixel from block2 on the path
+            Color color = new Color(block2.getRGB(x, y));
+            g.setColor(color);
+            g.fillRect(x, y, 1, 1); // Drawing one pixel at a time
+
+            currentLoc = followPath(currentLoc); // Follow the path
+        }
+
+        g.dispose();
+        return stitched;
+    }
+
+    
+    
+    private void findMinPath(double[][] dists, boolean allowHorizontal) {
+        int rows = dists.length;
+        int cols = dists[0].length;
+        path = new TwoDLoc[rows][cols];
+        costs = new double[rows][cols];
+
+        // Initialize costs and path arrays
+        for (int r = 0; r < rows; r++) {
+            for (int c = 0; c < cols; c++) {
+                costs[r][c] = dists[r][c];
+                path[r][c] = (r == 0) ? null : new TwoDLoc(r - 1, c);
+            }
+        }
+
+        // Calculate paths based on minimum costs
+        for (int r = 1; r < rows; r++) {
+            for (int c = 0; c < cols; c++) {
+                if (c > 0 && costs[r][c - 1] < costs[r][path[r][c].getCol()]) {
+                    path[r][c] = new TwoDLoc(r - 1, c - 1);
+                }
+                if (c < cols - 1 && costs[r][c + 1] < costs[r][path[r][c].getCol()]) {
+                    path[r][c] = new TwoDLoc(r - 1, c + 1);
+                }
+            }
+        }
+
+        // Handle horizontal movement if allowed
+        if (allowHorizontal) {
+            handleHorizontalMovement(dists);
+        }
+    }
+
+    
+
+    private TwoDLoc followPath(TwoDLoc currentLoc) {
+        return path[currentLoc.getRow()][currentLoc.getCol()];
+    }
+
+    private TwoDLoc findBestSourceLoc() {
+        int lastRow = costs.length - 1;
+        TwoDLoc bestLoc = new TwoDLoc(lastRow, 0);
+        for (int i = 1; i < costs[0].length; i++) {
+            if (costs[lastRow][i] < costs[lastRow][bestLoc.getCol()]) {
+                bestLoc = new TwoDLoc(lastRow, i);
+            }
+        }
+        return bestLoc;
+    }
+    
+    
+    
+    
+    private static class TwoDLoc {
+        private int row;
+        private int col;
+
+        public TwoDLoc(int row, int col) {
+            this.row = row;
+            this.col = col;
+        }
+
+        public int getRow() {
+            return row;
+        }
+
+        public int getCol() {
+            return col;
+        }
+    }
+    
+    private void handleHorizontalMovement(double[][] dists) {
+        int rows = dists.length;
+        int cols = dists[0].length;
+
+        for (int r = 1; r < rows; r++) {
+            // Update paths for leftward movement
+            for (int c = 1; c < cols; c++) {
+                double costIfMovedLeft = costs[r][c - 1] + dists[r][c];
+                if (costIfMovedLeft < costs[r][c]) {
+                    costs[r][c] = costIfMovedLeft;
+                    path[r][c] = new TwoDLoc(r, c - 1);
+                }
+            }
+
+            // Update paths for rightward movement
+            for (int c = cols - 2; c >= 0; c--) {
+                double costIfMovedRight = costs[r][c + 1] + dists[r][c];
+                if (costIfMovedRight < costs[r][c]) {
+                    costs[r][c] = costIfMovedRight;
+                    path[r][c] = new TwoDLoc(r, c + 1);
+                }
+            }
+        }
+    }
+
+
+    
+    private double[][] calculateCostsForOverlap(BufferedImage block1, BufferedImage block2, boolean horizontal) {
+        int overlapSize = horizontal ? block1.getHeight() : block1.getWidth();
+        int width = horizontal ? block1.getWidth() : overlapSize;
+        int height = horizontal ? overlapSize : block1.getHeight();
+
+        double[][] costs = new double[height][width];
+
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                Color color1 = new Color(block1.getRGB(x, y));
+                Color color2 = new Color(block2.getRGB(x, y));
+                costs[y][x] = calculateColorDifference(color1, color2);
+            }
+        }
+
+        return costs;
+    }
+
+    private double calculateColorDifference(Color c1, Color c2) {
+        return Math.pow(c1.getRed() - c2.getRed(), 2) +
+               Math.pow(c1.getGreen() - c2.getGreen(), 2) +
+               Math.pow(c1.getBlue() - c2.getBlue(), 2);
+    }
+    
+    
+    
+    // End Step 3
+
+
+    
 	
 	
 	public void paint(Graphics g) {
@@ -251,7 +553,8 @@ class ImageQuilter extends JFrame implements ActionListener {
 		
 		g.drawImage(srcImage, 25, 140, sw, sh, this);
 	    g.drawImage(patternImage, sw+75, 140, pw, ph, this);
-	    g.drawImage(createQuiltedImage(), sw+pw+125, 140, sw, sh, this); //replace with final image
+	    g.drawImage(createQuiltedImage(), sw+pw+125, 140, sw, sh, this); 
+	    g.drawImage(createQuiltedImage2(), sw, 540, sw, sh, this); 
 	    
 	    g.drawImage(recreatePatternImage(), sw+pw+125, 540, sw, sh, this);
 	    
