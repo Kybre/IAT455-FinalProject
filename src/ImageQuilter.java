@@ -42,7 +42,7 @@ class ImageQuilter extends JFrame implements ActionListener {
 	public ImageQuilter() {
 		//load images
 		try {
-			srcImage = ImageIO.read(new File("toast.png")); //fill in file values later
+			srcImage = ImageIO.read(new File("starrynight.jpg")); //fill in file values later
 			patternImage = ImageIO.read(new File("statue.jpg"));
 
 		} catch (Exception e) {
@@ -142,6 +142,31 @@ class ImageQuilter extends JFrame implements ActionListener {
         return assembleSortedBlocks(sortedBlocks, gridWidth, gridHeight, blockSize);
         
     }
+	
+	
+	private BufferedImage createRandomQuiltedImage() {
+	    int gridWidth = srcImage.getWidth() / blockSize;
+	    int gridHeight = srcImage.getHeight() / blockSize;
+	    BufferedImage quiltedImage = new BufferedImage(srcImage.getWidth(), srcImage.getHeight(), BufferedImage.TYPE_INT_RGB);
+	    Graphics g = quiltedImage.getGraphics();
+
+	    for (int x = 0; x < gridWidth; x++) {
+	        for (int y = 0; y < gridHeight; y++) {
+	            int srcX = (int) (Math.random() * gridWidth) * blockSize;
+	            int srcY = (int) (Math.random() * gridHeight) * blockSize;
+
+	            // Extracting the block and storing it in the array
+	            BufferedImage chosenBlock = srcImage.getSubimage(srcX, srcY, blockSize, blockSize);
+
+	            g.drawImage(chosenBlock, x * blockSize, y * blockSize, null);
+	        }
+	    }
+
+	    g.dispose();
+	    return quiltedImage;
+	}
+
+	
 	
 	private List<BufferedImage> sortBlocksByBrightness() {
         List<BufferedImage> blocks = new ArrayList<>();
@@ -554,9 +579,12 @@ class ImageQuilter extends JFrame implements ActionListener {
 		g.drawImage(srcImage, 25, 140, sw, sh, this);
 	    g.drawImage(patternImage, sw+75, 140, pw, ph, this);
 	    g.drawImage(createQuiltedImage(), sw+pw+125, 140, sw, sh, this); 
-	    g.drawImage(createQuiltedImage2(), sw, 540, sw, sh, this); 
 	    
+
+	    g.drawImage(createRandomQuiltedImage(), 25, 540, sw, sh, this);
+	    g.drawImage(createQuiltedImage2(), sw + 75, 540, sw, sh, this); 
 	    g.drawImage(recreatePatternImage(), sw+pw+125, 540, sw, sh, this);
+
 	    
 	    g.drawString("Original Image", 25, 125); 
 	    g.drawString("Pattern", sw+75, 125); 
