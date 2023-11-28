@@ -35,6 +35,7 @@ class ImageQuilter extends JFrame implements ActionListener {
 
     private double[][] costs;
     private TwoDLoc[][] path;
+    boolean rotateBlocks = true;
     
     int blockSize = 20, overlapPercent = 10;
 
@@ -269,7 +270,6 @@ class ImageQuilter extends JFrame implements ActionListener {
         return block.getSubimage(0, 0, block.getWidth(), overlapHeight);
     }
 
-    
     private BufferedImage createQuiltedImage2() {
         int gridWidth = srcImage.getWidth() / blockSize;
         int gridHeight = srcImage.getHeight() / blockSize;
@@ -280,7 +280,6 @@ class ImageQuilter extends JFrame implements ActionListener {
         double toleranceIncrement = 0.2;  // Reduction factor for each iteration
         double maxTolerance = 6;
         
-
         BufferedImage[][] selectedBlocks = new BufferedImage[gridHeight][gridWidth];
 
         for (int y = 0; y < gridHeight; y++) {
@@ -296,25 +295,54 @@ class ImageQuilter extends JFrame implements ActionListener {
                         for (BufferedImage block : row) {
                             double ssdLeft = 0.0, ssdTop = 0.0;
 
-                            if (x > 0) {  // Calculate SSD for left overlap
-                                BufferedImage leftOverlap = getRightOverlap(selectedBlocks[y][x - 1]);
-                                BufferedImage currentLeftOverlap = getLeftOverlap(block);
-                                ssdLeft = calculateOverlapSSD(leftOverlap, currentLeftOverlap, leftOverlap.getWidth());
-                            }
-
-                            if (y > 0) {  // Calculate SSD for top overlap
-                                BufferedImage topOverlap = getBottomOverlap(selectedBlocks[y - 1][x]);
-                                BufferedImage currentTopOverlap = getTopOverlap(block);
-                                ssdTop = calculateOverlapSSD(topOverlap, currentTopOverlap, topOverlap.getHeight());
-                            }
-
-                            double combinedSSD = ssdLeft + ssdTop;
-                            if (combinedSSD < minSSD * tolerance) {
-                                if (combinedSSD < minSSD) {
-                                    minSSD = combinedSSD;
-                                    suitableBlocks.clear();
+                            if (rotateBlocks) {
+                                for (int rotation = 0; rotation < 4; rotation++) {
+                                    // Rotate the block 90 degrees clockwise
+                                    block = rotateClockwise(block);
+                                    
+                                    if (x > 0) {  // Calculate SSD for left overlap
+                                        BufferedImage leftOverlap = getRightOverlap(selectedBlocks[y][x - 1]);
+                                        BufferedImage currentLeftOverlap = getLeftOverlap(block);
+                                        ssdLeft = calculateOverlapSSD(leftOverlap, currentLeftOverlap, leftOverlap.getWidth());
+                                    }
+                                    
+                                    if (y > 0) {  // Calculate SSD for top overlap
+                                        BufferedImage topOverlap = getBottomOverlap(selectedBlocks[y - 1][x]);
+                                        BufferedImage currentTopOverlap = getTopOverlap(block);
+                                        ssdTop = calculateOverlapSSD(topOverlap, currentTopOverlap, topOverlap.getHeight());
+                                    }
+                                    
+                                    double combinedSSD = ssdLeft + ssdTop;
+                                    if (combinedSSD < minSSD * tolerance) {
+                                        if (combinedSSD < minSSD) {
+                                            minSSD = combinedSSD;
+                                            suitableBlocks.clear();
+                                        }
+                                        suitableBlocks.add(block);
+                                    }
                                 }
-                                suitableBlocks.add(block);
+                            } else {
+                                // No rotation, calculate SSD for the block in its original orientation
+                                if (x > 0) {  // Calculate SSD for left overlap
+                                    BufferedImage leftOverlap = getRightOverlap(selectedBlocks[y][x - 1]);
+                                    BufferedImage currentLeftOverlap = getLeftOverlap(block);
+                                    ssdLeft = calculateOverlapSSD(leftOverlap, currentLeftOverlap, leftOverlap.getWidth());
+                                }
+                                
+                                if (y > 0) {  // Calculate SSD for top overlap
+                                    BufferedImage topOverlap = getBottomOverlap(selectedBlocks[y - 1][x]);
+                                    BufferedImage currentTopOverlap = getTopOverlap(block);
+                                    ssdTop = calculateOverlapSSD(topOverlap, currentTopOverlap, topOverlap.getHeight());
+                                }
+                                
+                                double combinedSSD = ssdLeft + ssdTop;
+                                if (combinedSSD < minSSD * tolerance) {
+                                    if (combinedSSD < minSSD) {
+                                        minSSD = combinedSSD;
+                                        suitableBlocks.clear();
+                                    }
+                                    suitableBlocks.add(block);
+                                }
                             }
                         }
                     }
@@ -337,8 +365,24 @@ class ImageQuilter extends JFrame implements ActionListener {
 
         g.dispose();
         return quiltedImage;
-    
     }
+
+
+    // Rotate an image 90 degrees clockwise
+    private BufferedImage rotateClockwise(BufferedImage image) {
+        int width = image.getWidth();
+        int height = image.getHeight();
+        BufferedImage rotated = new BufferedImage(height, width, image.getType());
+
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                rotated.setRGB(y, width - 1 - x, image.getRGB(x, y));
+            }
+        }
+
+        return rotated;
+    }
+
 
     
     private double calculateOverlapSSD(BufferedImage block1, BufferedImage block2, int overlapWidth) {
