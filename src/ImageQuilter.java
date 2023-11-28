@@ -42,7 +42,7 @@ class ImageQuilter extends JFrame implements ActionListener {
 	public ImageQuilter() {
 		//load images
 		try {
-			srcImage = ImageIO.read(new File("background.jpg")); //fill in file values later
+			srcImage = ImageIO.read(new File("toast.png")); //fill in file values later
 			patternImage = ImageIO.read(new File("statue.jpg"));
 
 		} catch (Exception e) {
@@ -251,9 +251,9 @@ class ImageQuilter extends JFrame implements ActionListener {
         BufferedImage quiltedImage = new BufferedImage(srcImage.getWidth(), srcImage.getHeight(), BufferedImage.TYPE_INT_RGB);
         Graphics g = quiltedImage.getGraphics();
         
-        double initialTolerance = 3;  // Initial tolerance factor 
-        double toleranceReduction = 0.2;  // Reduction factor for each iteration
-        
+        double initialTolerance = 2;  // Initial tolerance factor 
+        double toleranceIncrement = 0.2;  // Reduction factor for each iteration
+        double maxTolerance = 6;
         
 
         BufferedImage[][] selectedBlocks = new BufferedImage[gridHeight][gridWidth];
@@ -298,8 +298,8 @@ class ImageQuilter extends JFrame implements ActionListener {
                         int randomIndex = (int) (Math.random() * suitableBlocks.size());
                         chosenBlock = suitableBlocks.get(randomIndex);
                     } else {
-                        tolerance -= toleranceReduction;
-                        if (tolerance <= 0) {
+                        tolerance += toleranceIncrement;
+                        if (tolerance > maxTolerance) {
                             throw new RuntimeException("No suitable block found within tolerance");
                         }
                     }
