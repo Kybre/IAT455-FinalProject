@@ -247,47 +247,56 @@ class ImageQuilter extends JFrame implements ActionListener {
         g.dispose();
         return newImage;
     }
-    
-    
-    
     private BufferedImage recreatesrcImage() {
         int gridWidth = srcImage.getWidth() / blockSize;
         int gridHeight = srcImage.getHeight() / blockSize;
+        
+        double brightnessRange = 3.0;
+        double brightnessIncrement = 5.0;
+        
 
         BufferedImage newImage = new BufferedImage(srcImage.getWidth(), srcImage.getHeight(), BufferedImage.TYPE_INT_RGB);
         Graphics g = newImage.getGraphics();
 
-        for (int x = 0; x < gridWidth; x++) {
-            for (int y = 0; y < gridHeight; y++) {
-                BufferedImage block = srcImage.getSubimage(x * blockSize, y * blockSize, blockSize, blockSize);
-                double brightness = calculateAverageBrightness(block);
-                BufferedImage closestMatch = findClosestMatch(brightness);
-                g.drawImage(closestMatch, x * blockSize, y * blockSize, null);
+        for (int y = 0; y < gridHeight; y++) {
+            for (int x = 0; x < gridWidth; x++) {
+                BufferedImage chosenBlock = null;
+                double brightness = calculateAverageBrightness(srcImage.getSubimage(x * blockSize, y * blockSize, blockSize, blockSize));
+                double currentThreshold = brightnessRange;
+
+                while (chosenBlock == null) {
+                    List<BufferedImage> suitableBlocks = new ArrayList<>();
+
+                    for (BufferedImage[] row : imageBlocks) {
+                        for (BufferedImage block : row) {
+                            double blockBrightness = calculateAverageBrightness(block);
+                            double diff = Math.abs(blockBrightness - brightness);
+
+                            // Check if the difference is within the current brightness threshold
+                            if (diff <= currentThreshold) {
+                                suitableBlocks.add(block);
+                            }
+                        }
+                    }
+
+                    if (!suitableBlocks.isEmpty()) {
+                        int randomIndex = (int) (Math.random() * suitableBlocks.size());
+                        chosenBlock = suitableBlocks.get(randomIndex);
+                    } else {
+                        currentThreshold += brightnessIncrement;
+                    }
+                }
+
+                g.drawImage(chosenBlock, x * blockSize, y * blockSize, null);
             }
         }
 
         g.dispose();
         return newImage;
     }
+
     
-    private BufferedImage findClosestMatch(double targetBrightness) {
-        BufferedImage closest = null;
-        double minDiff = Double.MAX_VALUE;
-
-        for (BufferedImage[] row : imageBlocks) {
-            for (BufferedImage block : row) {
-                double blockBrightness = calculateAverageBrightness(block);
-                double diff = Math.abs(blockBrightness - targetBrightness);
-
-                if (diff < minDiff) {
-                    minDiff = diff;
-                    closest = block;
-                }
-            }
-        }
-
-        return closest;
-    }
+    
     
     
     private BufferedImage getRightOverlap(BufferedImage block) {
@@ -349,6 +358,7 @@ class ImageQuilter extends JFrame implements ActionListener {
                                     }
                                     
                                     double combinedSSD = ssdLeft + ssdTop;
+                                    
                                     if (combinedSSD < minSSD * tolerance) {
                                         if (combinedSSD < minSSD) {
                                             minSSD = combinedSSD;
