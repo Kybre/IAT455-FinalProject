@@ -16,6 +16,7 @@ import javax.swing.JButton;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JTextField;
+import javax.swing.JToggleButton;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -25,26 +26,30 @@ import java.util.Comparator;
 
 class ImageQuilter extends JFrame implements ActionListener {
 
-    BufferedImage srcImage, patternImage, finalImage;
+    BufferedImage patternImage, srcImage, finalImage;
     BufferedImage[][] imageBlocks; // Array to store image blocks
     double screenWidth, screenHeight;
     int srcWidth, srcHeight, patternWidth, patternHeight;
     Dimension screenSize;
-    JButton srcButton, patternButton, updateButton;
-    JTextField blockSizeText, overlapText;
+    JButton patternButton, srcButton, updateButton;
+    JToggleButton blockRotationButton;
+    JTextField blockSizeText, overlapText, initialToleranceText, toleranceIncrementText, maxToleranceText;
 
     private double[][] costs;
     private TwoDLoc[][] path;
-    boolean rotateBlocks = true;
+    boolean rotateBlocks = false;
     
-    int blockSize = 20, overlapPercent = 10;
+    int blockSize = 20, overlapPercent = 25;
+    double initialTolerance = 2;  // Initial tolerance factor 
+    double toleranceIncrement = 0.2;  // Reduction factor for each iteration
+    double maxTolerance = 6;
 
 	
 	public ImageQuilter() {
 		//load images
 		try {
-			srcImage = ImageIO.read(new File("starrynight.jpg")); //fill in file values later
-			patternImage = ImageIO.read(new File("statue.jpg"));
+			patternImage = ImageIO.read(new File("starrynight.jpg")); //fill in file values later
+			srcImage = ImageIO.read(new File("statue.jpg"));
 
 		} catch (Exception e) {
 			System.out.println("Cannot load the provided image");
@@ -53,26 +58,46 @@ class ImageQuilter extends JFrame implements ActionListener {
 		this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		
 		//buttons
-		srcButton = new JButton("Upload Source");
 		patternButton = new JButton("Upload Pattern");
+		srcButton = new JButton("Upload Source");
 		updateButton = new JButton("Update Parameters");
+        blockRotationButton = new JToggleButton("Rotation for Blocks: OFF");
+        blockRotationButton.setBackground(Color.RED);
+
 		blockSizeText = new JTextField(Integer.toString(blockSize));
 		overlapText = new JTextField(Integer.toString(overlapPercent));
+        initialToleranceText = new JTextField(Double.toString(initialTolerance));
+        toleranceIncrementText = new JTextField(Double.toString(toleranceIncrement));
+        maxToleranceText = new JTextField(Double.toString(maxTolerance));
 		
-		srcButton.addActionListener(this);
 		patternButton.addActionListener(this);
+		srcButton.addActionListener(this);
 		updateButton.addActionListener(this);
-		
+        blockRotationButton.addActionListener(e -> {
+            if (blockRotationButton.isSelected()) {
+                rotateBlocks = true;
+                blockRotationButton.setText("Rotation for Blocks: ON");
+                blockRotationButton.setBackground(Color.GREEN);
+            } else {
+                rotateBlocks = false;
+                blockRotationButton.setText("Rotation for Blocks: OFF");
+                blockRotationButton.setBackground(Color.RED);
+            }
+        });
 		
 		
 		
 		this.setLayout(null);
 		
-		this.add(srcButton);
 		this.add(patternButton);
+		this.add(srcButton);
 		this.add(updateButton);
+        this.add(blockRotationButton);
 		this.add(blockSizeText);
 		this.add(overlapText);
+        this.add(initialToleranceText);
+        this.add(toleranceIncrementText);
+        this.add(maxToleranceText);
 		
 		screenSize = Toolkit.getDefaultToolkit().getScreenSize();
 		this.setSize(screenSize);
@@ -81,22 +106,37 @@ class ImageQuilter extends JFrame implements ActionListener {
 	public void actionPerformed(ActionEvent e) {
 		blockSize = Integer.parseInt(blockSizeText.getText());
 		overlapPercent = Integer.parseInt(overlapText.getText());
+        initialTolerance = Double.parseDouble(initialToleranceText.getText());  // Initial tolerance factor 
+        toleranceIncrement = Double.parseDouble(toleranceIncrementText.getText());  // Reduction factor for each iteration
+        maxTolerance = Double.parseDouble(maxToleranceText.getText());
+
+        if (overlapPercent < 0) overlapPercent = 0;
+        else if(overlapPercent > 100) overlapPercent = 100;
+
+        if (initialTolerance > maxTolerance) {
+            initialTolerance = 2;
+            initialToleranceText.setText("2");
+            maxTolerance = 6;
+            maxToleranceText.setText("6");
+        }
+
+        if (toleranceIncrement < initialTolerance || toleranceIncrement > maxTolerance) toleranceIncrement = 0.2;
 		
-		if(e.getSource() == srcButton) {
+		if(e.getSource() == patternButton) {
 			File srcFile = uploadFile();
 			if(srcFile != null) {
 				try {
-					srcImage = ImageIO.read(srcFile);
+					patternImage = ImageIO.read(srcFile);
 				} catch (Exception ex) {
 					System.out.println("Cannot load the provided image");
 				}
 			}
 		}
-		if(e.getSource() == patternButton) {
+		if(e.getSource() == srcButton) {
 			File patternFile = uploadFile();
 			if(patternFile != null) {
 				try {
-					patternImage = ImageIO.read(patternFile);
+					srcImage = ImageIO.read(patternFile);
 				} catch (Exception ex) {
 					System.out.println("Cannot load the provided image");
 				}
@@ -117,11 +157,11 @@ class ImageQuilter extends JFrame implements ActionListener {
 	}
 	
 	private BufferedImage createQuiltedImage() {
-        int gridWidth = srcImage.getWidth() / blockSize;
-        int gridHeight = srcImage.getHeight() / blockSize;
+        int gridWidth = patternImage.getWidth() / blockSize;
+        int gridHeight = patternImage.getHeight() / blockSize;
         imageBlocks = new BufferedImage[gridWidth][gridHeight]; // Initialize the array
 
-        BufferedImage quiltedImage = new BufferedImage(srcImage.getWidth(), srcImage.getHeight(), BufferedImage.TYPE_INT_RGB);
+        BufferedImage quiltedImage = new BufferedImage(patternImage.getWidth(), patternImage.getHeight(), BufferedImage.TYPE_INT_RGB);
         Graphics g = quiltedImage.getGraphics();
 
         for (int x = 0; x < gridWidth; x++) {
@@ -130,7 +170,7 @@ class ImageQuilter extends JFrame implements ActionListener {
                 int srcY = (int) (Math.random() * gridHeight) * blockSize;
 
                 // Extracting the block and storing it in the array
-                imageBlocks[x][y] = srcImage.getSubimage(srcX, srcY, blockSize, blockSize);
+                imageBlocks[x][y] = patternImage.getSubimage(srcX, srcY, blockSize, blockSize);
 
                 g.drawImage(imageBlocks[x][y], x * blockSize, y * blockSize, null);
             }
@@ -146,9 +186,9 @@ class ImageQuilter extends JFrame implements ActionListener {
 	
 	
 	private BufferedImage createRandomQuiltedImage() {
-	    int gridWidth = srcImage.getWidth() / blockSize;
-	    int gridHeight = srcImage.getHeight() / blockSize;
-	    BufferedImage quiltedImage = new BufferedImage(srcImage.getWidth(), srcImage.getHeight(), BufferedImage.TYPE_INT_RGB);
+	    int gridWidth = patternImage.getWidth() / blockSize;
+	    int gridHeight = patternImage.getHeight() / blockSize;
+	    BufferedImage quiltedImage = new BufferedImage(patternImage.getWidth(), patternImage.getHeight(), BufferedImage.TYPE_INT_RGB);
 	    Graphics g = quiltedImage.getGraphics();
 
 	    for (int x = 0; x < gridWidth; x++) {
@@ -157,7 +197,7 @@ class ImageQuilter extends JFrame implements ActionListener {
 	            int srcY = (int) (Math.random() * gridHeight) * blockSize;
 
 	            // Extracting the block and storing it in the array
-	            BufferedImage chosenBlock = srcImage.getSubimage(srcX, srcY, blockSize, blockSize);
+	            BufferedImage chosenBlock = patternImage.getSubimage(srcX, srcY, blockSize, blockSize);
 
 	            g.drawImage(chosenBlock, x * blockSize, y * blockSize, null);
 	        }
@@ -193,7 +233,7 @@ class ImageQuilter extends JFrame implements ActionListener {
     }
 
     private BufferedImage assembleSortedBlocks(List<BufferedImage> blocks, int gridWidth, int gridHeight, int blockSize) {
-        BufferedImage newImage = new BufferedImage(srcImage.getWidth(), srcImage.getHeight(), BufferedImage.TYPE_INT_RGB);
+        BufferedImage newImage = new BufferedImage(patternImage.getWidth(), patternImage.getHeight(), BufferedImage.TYPE_INT_RGB);
         Graphics g = newImage.getGraphics();
 
         int index = 0;
@@ -210,16 +250,16 @@ class ImageQuilter extends JFrame implements ActionListener {
     
     
     
-    private BufferedImage recreatePatternImage() {
-        int gridWidth = patternImage.getWidth() / blockSize;
-        int gridHeight = patternImage.getHeight() / blockSize;
+    private BufferedImage recreatesrcImage() {
+        int gridWidth = srcImage.getWidth() / blockSize;
+        int gridHeight = srcImage.getHeight() / blockSize;
 
-        BufferedImage newImage = new BufferedImage(patternImage.getWidth(), patternImage.getHeight(), BufferedImage.TYPE_INT_RGB);
+        BufferedImage newImage = new BufferedImage(srcImage.getWidth(), srcImage.getHeight(), BufferedImage.TYPE_INT_RGB);
         Graphics g = newImage.getGraphics();
 
         for (int x = 0; x < gridWidth; x++) {
             for (int y = 0; y < gridHeight; y++) {
-                BufferedImage block = patternImage.getSubimage(x * blockSize, y * blockSize, blockSize, blockSize);
+                BufferedImage block = srcImage.getSubimage(x * blockSize, y * blockSize, blockSize, blockSize);
                 double brightness = calculateAverageBrightness(block);
                 BufferedImage closestMatch = findClosestMatch(brightness);
                 g.drawImage(closestMatch, x * blockSize, y * blockSize, null);
@@ -251,34 +291,30 @@ class ImageQuilter extends JFrame implements ActionListener {
     
     
     private BufferedImage getRightOverlap(BufferedImage block) {
-        int overlapWidth = block.getWidth() / 4;
+        int overlapWidth = (int) (block.getWidth() * (overlapPercent/100.0));
         return block.getSubimage(block.getWidth() - overlapWidth, 0, overlapWidth, block.getHeight());
     }
 
     private BufferedImage getLeftOverlap(BufferedImage block) {
-        int overlapWidth = block.getWidth() / 4;
+        int overlapWidth = (int) (block.getWidth() * (overlapPercent/100.0));
         return block.getSubimage(0, 0, overlapWidth, block.getHeight());
     }
 
     private BufferedImage getBottomOverlap(BufferedImage block) {
-        int overlapHeight = block.getHeight() / 4;
+        int overlapHeight = (int) (block.getHeight() * (overlapPercent/100.0));
         return block.getSubimage(0, block.getHeight() - overlapHeight, block.getWidth(), overlapHeight);
     }
 
     private BufferedImage getTopOverlap(BufferedImage block) {
-        int overlapHeight = block.getHeight() / 4;
+        int overlapHeight = (int) (block.getHeight() * (overlapPercent/100.0));
         return block.getSubimage(0, 0, block.getWidth(), overlapHeight);
     }
 
     private BufferedImage createQuiltedImage2() {
-        int gridWidth = srcImage.getWidth() / blockSize;
-        int gridHeight = srcImage.getHeight() / blockSize;
-        BufferedImage quiltedImage = new BufferedImage(srcImage.getWidth(), srcImage.getHeight(), BufferedImage.TYPE_INT_RGB);
+        int gridWidth = patternImage.getWidth() / blockSize;
+        int gridHeight = patternImage.getHeight() / blockSize;
+        BufferedImage quiltedImage = new BufferedImage(patternImage.getWidth(), patternImage.getHeight(), BufferedImage.TYPE_INT_RGB);
         Graphics g = quiltedImage.getGraphics();
-        
-        double initialTolerance = 2;  // Initial tolerance factor 
-        double toleranceIncrement = 0.2;  // Reduction factor for each iteration
-        double maxTolerance = 6;
         
         BufferedImage[][] selectedBlocks = new BufferedImage[gridHeight][gridWidth];
 
@@ -587,7 +623,6 @@ class ImageQuilter extends JFrame implements ActionListener {
 
     
 	
-	
 	public void paint(Graphics g) {
 		super.paint(g);
 		
@@ -595,44 +630,56 @@ class ImageQuilter extends JFrame implements ActionListener {
 	    Font f1 = new Font("Verdana", Font.PLAIN, 13); 
 	    g.setFont(f1); 
 		
-		srcButton.setBounds(25, 25, 125, 25);
-		srcButton.setBackground(Color.gray.brighter());
-		
-		patternButton.setBounds(175, 25, 125, 25);
+		patternButton.setBounds(25, 25, 125, 25);
 		patternButton.setBackground(Color.gray.brighter());
+		
+		srcButton.setBounds(175, 25, 125, 25);
+		srcButton.setBackground(Color.gray.brighter());
 		
 		g.drawString("Block Size:", 350, 70);
 		blockSizeText.setBounds(425, 25, 50, 25);
 		
 		g.drawString("Overlap %:", 500, 70);
 		overlapText.setBounds(575, 25, 50, 25);
+
+        g.drawString("Minimum Error Tolerance:", 350, 120);
+		initialToleranceText.setBounds(525, 75, 50, 25);
+
+        g.drawString("Error Tolerance Increment:", 650, 120);
+		toleranceIncrementText.setBounds(825, 75, 50, 25);
+
+        g.drawString("Maximum Error Tolerance:", 950, 120);
+		maxToleranceText.setBounds(1125, 75, 50, 25);
+        
+
+        blockRotationButton.setBounds(800, 25, 250, 25);
 		
 		updateButton.setBounds(screenSize.width - 250, 25, 200, 25);
 		updateButton.setBackground(new Color(164,213,227));
 		
 		g.setColor(new Color(20,20,20));
-		g.drawLine(25, 100, (int)screenSize.getWidth()-25, 100);
+		g.drawLine(25, 150, (int)screenSize.getWidth()-25, 150);
 		
 		//images
-		int sw = srcImage.getWidth();
-		int sh = srcImage.getHeight();
+		int sw = patternImage.getWidth();
+		int sh = patternImage.getHeight();
 		
-		int pw = patternImage.getWidth();
-		int ph = patternImage.getHeight();
+		int pw = srcImage.getWidth();
+		int ph = srcImage.getHeight();
 		
-		g.drawImage(srcImage, 25, 140, sw, sh, this);
-	    g.drawImage(patternImage, sw+75, 140, pw, ph, this);
-	    g.drawImage(createQuiltedImage(), sw+pw+125, 140, sw, sh, this); 
+		g.drawImage(patternImage, 25, 240, sw, sh, this);
+	    g.drawImage(srcImage, sw+75, 240, pw, ph, this);
+	    g.drawImage(createQuiltedImage(), sw+pw+125, 240, sw, sh, this); 
 	    
 
-	    g.drawImage(createRandomQuiltedImage(), 25, 540, sw, sh, this);
-	    g.drawImage(createQuiltedImage2(), sw + 75, 540, sw, sh, this); 
-	    g.drawImage(recreatePatternImage(), sw+pw+125, 540, sw, sh, this);
+	    g.drawImage(createRandomQuiltedImage(), 25, 640, sw, sh, this);
+	    g.drawImage(createQuiltedImage2(), sw + 75, 640, sw, sh, this); 
+	    g.drawImage(recreatesrcImage(), sw+pw+125, 640, sw, sh, this);
 
 	    
-	    g.drawString("Original Image", 25, 125); 
-	    g.drawString("Pattern", sw+75, 125); 
-	    g.drawString("Result", sw+pw+125, 125); 
+	    g.drawString("Pattern", 25, 225); 
+	    g.drawString("Original Image", sw+75, 225); 
+	    g.drawString("Result", sw+pw+125, 225); 
 	}
 
 	
