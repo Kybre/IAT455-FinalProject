@@ -2,7 +2,6 @@ import java.awt.Color;
 import java.awt.image.BufferedImage;
 
 public class Functions {
-	
 	public BufferedImage over(BufferedImage foreground, BufferedImage matte, BufferedImage background) {
 		
 		// Write your code here
@@ -79,15 +78,15 @@ public class Functions {
 		return v;
 	}
 
-	protected int getRed(int pixel) {
+	protected static int getRed(int pixel) {
 		return (pixel >>> 16) & 0xFF;
 	}
 
-	protected int getGreen(int pixel) {
+	protected static int getGreen(int pixel) {
 		return (pixel >>> 8) & 0xFF;
 	}
 
-	protected int getBlue(int pixel) {
+	protected static int getBlue(int pixel) {
 		return pixel & 0xFF;
 	}
 }

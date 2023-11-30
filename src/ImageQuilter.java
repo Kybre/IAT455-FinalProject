@@ -33,7 +33,7 @@ class ImageQuilter extends JFrame implements ActionListener {
     Dimension screenSize;
     JButton patternButton, srcButton, updateButton;
     JToggleButton blockRotationButton;
-    JTextField blockSizeText, overlapText, initialToleranceText, toleranceIncrementText, maxToleranceText;
+    JTextField blockSizeText, overlapText, initialToleranceText, toleranceIncrementText, maxToleranceText, lumaBlendText;
 
     private double[][] costs;
     private TwoDLoc[][] path;
@@ -43,6 +43,7 @@ class ImageQuilter extends JFrame implements ActionListener {
     double initialTolerance = 2;  // Initial tolerance factor 
     double toleranceIncrement = 0.2;  // Reduction factor for each iteration
     double maxTolerance = 6;
+    float lumaBlend = 0.5f; //final brightness blend %
 
 	
 	public ImageQuilter() {
@@ -69,6 +70,7 @@ class ImageQuilter extends JFrame implements ActionListener {
         initialToleranceText = new JTextField(Double.toString(initialTolerance));
         toleranceIncrementText = new JTextField(Double.toString(toleranceIncrement));
         maxToleranceText = new JTextField(Double.toString(maxTolerance));
+        lumaBlendText = new JTextField(Float.toString(lumaBlend*100f));
 		
 		patternButton.addActionListener(this);
 		srcButton.addActionListener(this);
@@ -98,6 +100,7 @@ class ImageQuilter extends JFrame implements ActionListener {
         this.add(initialToleranceText);
         this.add(toleranceIncrementText);
         this.add(maxToleranceText);
+        this.add(lumaBlendText);
 		
 		screenSize = Toolkit.getDefaultToolkit().getScreenSize();
 		this.setSize(screenSize);
@@ -109,6 +112,7 @@ class ImageQuilter extends JFrame implements ActionListener {
         initialTolerance = Double.parseDouble(initialToleranceText.getText());  // Initial tolerance factor 
         toleranceIncrement = Double.parseDouble(toleranceIncrementText.getText());  // Reduction factor for each iteration
         maxTolerance = Double.parseDouble(maxToleranceText.getText());
+        lumaBlend = Float.parseFloat(lumaBlendText.getText()) / 100f; //brightness blend value
 
         if (overlapPercent < 0) overlapPercent = 0;
         else if(overlapPercent > 100) overlapPercent = 100;
@@ -247,6 +251,28 @@ class ImageQuilter extends JFrame implements ActionListener {
         g.dispose();
         return newImage;
     }
+    
+	private BufferedImage lumaCorrect(BufferedImage src, BufferedImage pattern, float blendPercent) {
+		BufferedImage result = new BufferedImage(src.getWidth(),
+				src.getHeight(), src.getType());
+
+    	for(int i = 0; i < result.getWidth(); i++) {
+    		for(int j = 0; j < result.getHeight(); j++) {
+    			int sCol = src.getRGB(i, j);
+    			int pCol = pattern.getRGB(i, j);
+    			
+    			float[] sHSB = Color.RGBtoHSB(Functions.getRed(sCol), Functions.getGreen(sCol), Functions.getBlue(sCol), null);
+    			float[] pHSB = Color.RGBtoHSB(Functions.getRed(pCol), Functions.getGreen(pCol), Functions.getBlue(pCol), null);
+    			
+    			float finalBrightness = 255 * (blendPercent * (sHSB[2]/255) + (1-blendPercent) * (pHSB[2]/255));
+    			
+    			int fCol = Color.HSBtoRGB(pHSB[0], pHSB[1], finalBrightness);
+    			result.setRGB(i, j, new Color(Functions.getRed(fCol), Functions.getGreen(fCol), Functions.getBlue(fCol)).getRGB());
+    		}
+    	}
+		return result;
+	}
+    
     private BufferedImage recreatesrcImage() {
         int gridWidth = srcImage.getWidth() / blockSize;
         int gridHeight = srcImage.getHeight() / blockSize;
@@ -652,17 +678,19 @@ class ImageQuilter extends JFrame implements ActionListener {
 		g.drawString("Overlap %:", 500, 70);
 		overlapText.setBounds(575, 25, 50, 25);
 
-        g.drawString("Minimum Error Tolerance:", 350, 120);
-		initialToleranceText.setBounds(525, 75, 50, 25);
+        g.drawString("Minimum Error Tolerance:", 35, 120);
+		initialToleranceText.setBounds(210, 75, 50, 25);
 
-        g.drawString("Error Tolerance Increment:", 650, 120);
-		toleranceIncrementText.setBounds(825, 75, 50, 25);
+        g.drawString("Error Tolerance Increment:", 285, 120);
+		toleranceIncrementText.setBounds(460, 75, 50, 25);
 
-        g.drawString("Maximum Error Tolerance:", 950, 120);
-		maxToleranceText.setBounds(1125, 75, 50, 25);
+        g.drawString("Maximum Error Tolerance:", 535, 120);
+		maxToleranceText.setBounds(710, 75, 50, 25);
         
+		g.drawString("Brightness Blend %:", 785, 120);
+		lumaBlendText.setBounds(925, 75, 50, 25);
 
-        blockRotationButton.setBounds(800, 25, 250, 25);
+        blockRotationButton.setBounds(screenSize.width - 550, 25, 250, 25);
 		
 		updateButton.setBounds(screenSize.width - 250, 25, 200, 25);
 		updateButton.setBackground(new Color(164,213,227));
@@ -684,7 +712,7 @@ class ImageQuilter extends JFrame implements ActionListener {
 
 	    g.drawImage(createRandomQuiltedImage(), 25, 640, sw, sh, this);
 	    g.drawImage(createQuiltedImage2(), sw + 75, 640, sw, sh, this); 
-	    g.drawImage(recreatesrcImage(), sw+pw+125, 640, sw, sh, this);
+	    g.drawImage(lumaCorrect(srcImage, recreatesrcImage(), lumaBlend), sw+pw+125, 640, sw, sh, this);
 
 	    
 	    g.drawString("Pattern", 25, 225); 
