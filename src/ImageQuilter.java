@@ -160,6 +160,9 @@ class ImageQuilter extends JFrame implements ActionListener {
         else return null;
 	}
 	
+	
+	// Create an image with blocks sorted by brightness
+	
 	private BufferedImage createQuiltedImage() {
         int gridWidth = patternImage.getWidth() / blockSize;
         int gridHeight = patternImage.getHeight() / blockSize;
@@ -188,6 +191,21 @@ class ImageQuilter extends JFrame implements ActionListener {
         
     }
 	
+
+	
+	private List<BufferedImage> sortBlocksByBrightness() {
+        List<BufferedImage> blocks = new ArrayList<>();
+        for (BufferedImage[] row : imageBlocks) {
+            blocks.addAll(Arrays.asList(row));
+        }
+
+        blocks.sort(Comparator.comparingDouble(this::calculateAverageBrightness));
+        return blocks;
+    }
+
+	
+	
+	// Create an image with blocks randomly placed. Used as a baseline.
 	
 	private BufferedImage createRandomQuiltedImage() {
 	    int gridWidth = patternImage.getWidth() / blockSize;
@@ -210,18 +228,6 @@ class ImageQuilter extends JFrame implements ActionListener {
 	    g.dispose();
 	    return quiltedImage;
 	}
-
-	
-	
-	private List<BufferedImage> sortBlocksByBrightness() {
-        List<BufferedImage> blocks = new ArrayList<>();
-        for (BufferedImage[] row : imageBlocks) {
-            blocks.addAll(Arrays.asList(row));
-        }
-
-        blocks.sort(Comparator.comparingDouble(this::calculateAverageBrightness));
-        return blocks;
-    }
 
 	
 	private double calculateAverageBrightness(BufferedImage block) {
@@ -252,26 +258,8 @@ class ImageQuilter extends JFrame implements ActionListener {
         return newImage;
     }
     
-	private BufferedImage lumaCorrect(BufferedImage src, BufferedImage pattern, float blendPercent) {
-		BufferedImage result = new BufferedImage(src.getWidth(),
-				src.getHeight(), src.getType());
-
-    	for(int i = 0; i < result.getWidth(); i++) {
-    		for(int j = 0; j < result.getHeight(); j++) {
-    			int sCol = src.getRGB(i, j);
-    			int pCol = pattern.getRGB(i, j);
-    			
-    			float[] sHSB = Color.RGBtoHSB(Functions.getRed(sCol), Functions.getGreen(sCol), Functions.getBlue(sCol), null);
-    			float[] pHSB = Color.RGBtoHSB(Functions.getRed(pCol), Functions.getGreen(pCol), Functions.getBlue(pCol), null);
-    			
-    			float finalBrightness = 255 * (blendPercent * (sHSB[2]/255) + (1-blendPercent) * (pHSB[2]/255));
-    			
-    			int fCol = Color.HSBtoRGB(pHSB[0], pHSB[1], finalBrightness);
-    			result.setRGB(i, j, new Color(Functions.getRed(fCol), Functions.getGreen(fCol), Functions.getBlue(fCol)).getRGB());
-    		}
-    	}
-		return result;
-	}
+    
+    // Instead of sorting by brightness, use a source image and pick the block that closest matches the brightness
     
     private BufferedImage recreatesrcImage() {
         int gridWidth = srcImage.getWidth() / blockSize;
@@ -322,8 +310,31 @@ class ImageQuilter extends JFrame implements ActionListener {
     }
 
     
+    // Adjust the previous quilted image using the source image's luma so it closer matches.
     
+	private BufferedImage lumaCorrect(BufferedImage src, BufferedImage pattern, float blendPercent) {
+		BufferedImage result = new BufferedImage(src.getWidth(),
+				src.getHeight(), src.getType());
+
+    	for(int i = 0; i < result.getWidth(); i++) {
+    		for(int j = 0; j < result.getHeight(); j++) {
+    			int sCol = src.getRGB(i, j);
+    			int pCol = pattern.getRGB(i, j);
+    			
+    			float[] sHSB = Color.RGBtoHSB(Functions.getRed(sCol), Functions.getGreen(sCol), Functions.getBlue(sCol), null);
+    			float[] pHSB = Color.RGBtoHSB(Functions.getRed(pCol), Functions.getGreen(pCol), Functions.getBlue(pCol), null);
+    			
+    			float finalBrightness = 255 * (blendPercent * (sHSB[2]/255) + (1-blendPercent) * (pHSB[2]/255));
+    			
+    			int fCol = Color.HSBtoRGB(pHSB[0], pHSB[1], finalBrightness);
+    			result.setRGB(i, j, new Color(Functions.getRed(fCol), Functions.getGreen(fCol), Functions.getBlue(fCol)).getRGB());
+    		}
+    	}
+		return result;
+	}
     
+	
+	// Find overlaps 
     
     private BufferedImage getRightOverlap(BufferedImage block) {
         int overlapWidth = (int) (block.getWidth() * (overlapPercent/100.0));
@@ -344,6 +355,8 @@ class ImageQuilter extends JFrame implements ActionListener {
         int overlapHeight = (int) (block.getHeight() * (overlapPercent/100.0));
         return block.getSubimage(0, 0, block.getWidth(), overlapHeight);
     }
+    
+    // Create quilted image, using edges of blocks to compare overlap compatability
 
     private BufferedImage createQuiltedImage2() {
         int gridWidth = patternImage.getWidth() / blockSize;
@@ -456,6 +469,7 @@ class ImageQuilter extends JFrame implements ActionListener {
     }
 
 
+    // Find Sum of Squared Difference (basically image similarity) between two edges
     
     private double calculateOverlapSSD(BufferedImage block1, BufferedImage block2, int overlapWidth) {
         double ssd = 0.0;
@@ -488,7 +502,7 @@ class ImageQuilter extends JFrame implements ActionListener {
     
     
     // Start step 3
-    // I don't know if any of this will work
+    // Code doesn't work but most of the implementation is accurate.
     
     
     
@@ -529,6 +543,7 @@ class ImageQuilter extends JFrame implements ActionListener {
         return stitched;
     }
 
+    
     
     
     private void findMinPath(double[][] dists, boolean allowHorizontal) {
@@ -601,6 +616,8 @@ class ImageQuilter extends JFrame implements ActionListener {
         }
     }
     
+    // 
+    
     private void handleHorizontalMovement(double[][] dists) {
         int rows = dists.length;
         int cols = dists[0].length;
@@ -627,6 +644,7 @@ class ImageQuilter extends JFrame implements ActionListener {
     }
 
 
+    // 
     
     private double[][] calculateCostsForOverlap(BufferedImage block1, BufferedImage block2, boolean horizontal) {
         int overlapSize = horizontal ? block1.getHeight() : block1.getWidth();
