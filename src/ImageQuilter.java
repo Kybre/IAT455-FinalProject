@@ -530,8 +530,8 @@ class ImageQuilter extends JFrame implements ActionListener {
         g.drawString("Pattern", 25, 225); 
 		g.drawImage(patternImage, 25, 240, pw, ph, this);
 
-        g.drawString("Original Image", sw+75, 225); 
-	    g.drawImage(srcImage, sw+75, 240, sw, sh, this);
+        g.drawString("Original Image", pw+75, 225); 
+	    g.drawImage(srcImage, pw+75, 240, sw, sh, this);
 
         g.drawString("Quilted Image: Block Sorted By Brightness", sw+pw+125, 225); 
 	    g.drawImage(createQuiltedImage(), sw+pw+125, 240, sw, sh, this); 
@@ -539,8 +539,8 @@ class ImageQuilter extends JFrame implements ActionListener {
         g.drawString("Quilted Image: Stitches Random Blocks ", 25, 625);
 	    g.drawImage(createRandomQuiltedImage(), 25, 640, sw, sh, this);
 
-        g.drawString("Quilted Image: Uses Steps From Research Paper", sw+75, 625);
-	    g.drawImage(createQuiltedImage2(), sw + 75, 640, sw, sh, this); 
+        g.drawString("Quilted Image: Uses Steps From Research Paper", pw+75, 625);
+	    g.drawImage(createQuiltedImage2(), pw + 75, 640, sw, sh, this); 
 
         g.drawString("Quilted Image: Recreates Original Image By Comparing Brightness ", sw+pw+125, 625);
 	    g.drawImage(lumaCorrect(srcImage, recreatesrcImage(), lumaBlend), sw+pw+125, 640, sw, sh, this);
@@ -732,83 +732,5 @@ class ImageQuilter extends JFrame implements ActionListener {
     
     
     // End Step 3
-
-
-    
-	
-	public void paint(Graphics g) {
-		super.paint(g);
-		
-	    g.setColor(Color.BLACK);
-	    Font f1 = new Font("Verdana", Font.PLAIN, 13); 
-	    g.setFont(f1); 
-		
-		patternButton.setBounds(25, 25, 125, 25);
-		patternButton.setBackground(Color.gray.brighter());
-		
-		srcButton.setBounds(175, 25, 125, 25);
-		srcButton.setBackground(Color.gray.brighter());
-		
-		g.drawString("Block Size:", 350, 70);
-		blockSizeText.setBounds(425, 25, 50, 25);
-		
-		g.drawString("Overlap %:", 500, 70);
-		overlapText.setBounds(575, 25, 50, 25);
-
-        g.drawString("Minimum Error Tolerance:", 35, 120);
-		initialToleranceText.setBounds(210, 75, 50, 25);
-
-        g.drawString("Error Tolerance Increment:", 285, 120);
-		toleranceIncrementText.setBounds(460, 75, 50, 25);
-
-        g.drawString("Maximum Error Tolerance:", 535, 120);
-		maxToleranceText.setBounds(710, 75, 50, 25);
-        
-		g.drawString("Brightness Blend %:", 785, 120);
-		lumaBlendText.setBounds(925, 75, 50, 25);
-
-        blockRotationButton.setBounds(screenSize.width - 550, 25, 250, 25);
-		
-		updateButton.setBounds(screenSize.width - 250, 25, 200, 25);
-		updateButton.setBackground(new Color(164,213,227));
-		
-		g.setColor(new Color(20,20,20));
-		g.drawLine(25, 150, (int)screenSize.getWidth()-25, 150);
-		
-		//images
-		int pw = patternImage.getWidth();
-		int ph = patternImage.getHeight();
-		
-		int sw = srcImage.getWidth();
-		int sh = srcImage.getHeight();
-		
-        g.drawString("Pattern", 25, 225); 
-		g.drawImage(patternImage, 25, 240, pw, ph, this);
-
-        g.drawString("Original Image", sw+125, 225); 
-	    g.drawImage(srcImage, sw+125, 240, sw, sh, this);
-
-        g.drawString("Quilted Image: Block Sorted By Brightness", sw+pw+175, 225); 
-	    g.drawImage(createQuiltedImage(), sw+pw+175, 240, pw, ph, this); 
-	    
-        g.drawString("Quilted Image: Stitches Random Blocks ", 25, 625);
-	    g.drawImage(createRandomQuiltedImage(), 25, 640, pw, ph, this);
-
-        g.drawString("Quilted Image: Uses Steps From Research Paper", sw+125, 625);
-	    g.drawImage(createQuiltedImage2(), sw + 125, 640, pw, ph, this); 
-
-        g.drawString("Quilted Image: Recreates Original Image By Comparing Brightness ", sw+pw+175, 625);
-	    g.drawImage(lumaCorrect(srcImage, recreatesrcImage(), lumaBlend), sw+pw+175, 640, sw, sh, this);
-
-	     
-	}
-
-	
-	public static void main(String[] args) {
-		// TODO Auto-generated method stub
-		ImageQuilter iq = new ImageQuilter();
-		iq.setVisible(true);
-		iq.repaint();
-	}
 
 }
