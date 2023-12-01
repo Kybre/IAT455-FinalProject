@@ -479,17 +479,9 @@ class ImageQuilter extends JFrame implements ActionListener {
                 int rgb1 = block1.getRGB(x, y);
                 int rgb2 = block2.getRGB(x, y);
 
-                int red1 = (rgb1 >> 16) & 0xff;
-                int green1 = (rgb1 >> 8) & 0xff;
-                int blue1 = (rgb1) & 0xff;
-
-                int red2 = (rgb2 >> 16) & 0xff;
-                int green2 = (rgb2 >> 8) & 0xff;
-                int blue2 = (rgb2) & 0xff;
-
-                ssd += Math.pow(red1 - red2, 2);
-                ssd += Math.pow(green1 - green2, 2);
-                ssd += Math.pow(blue1 - blue2, 2);
+                ssd += Math.pow(Functions.getRed(rgb1) - Functions.getRed(rgb2), 2);
+                ssd += Math.pow(Functions.getGreen(rgb1) - Functions.getGreen(rgb2), 2);
+                ssd += Math.pow(Functions.getBlue(rgb1) - Functions.getBlue(rgb2), 2);
             }
         }
         return ssd;
@@ -726,20 +718,20 @@ class ImageQuilter extends JFrame implements ActionListener {
         g.drawString("Pattern", 25, 225); 
 		g.drawImage(patternImage, 25, 240, pw, ph, this);
 
-        g.drawString("Original Image", sw+75, 225); 
-	    g.drawImage(srcImage, sw+75, 240, sw, sh, this);
+        g.drawString("Original Image", sw+125, 225); 
+	    g.drawImage(srcImage, sw+125, 240, sw, sh, this);
 
-        g.drawString("Quilted Image: Block Sorted By Brightness", sw+pw+125, 225); 
-	    g.drawImage(createQuiltedImage(), sw+pw+125, 240, sw, sh, this); 
+        g.drawString("Quilted Image: Block Sorted By Brightness", sw+pw+175, 225); 
+	    g.drawImage(createQuiltedImage(), sw+pw+175, 240, pw, ph, this); 
 	    
         g.drawString("Quilted Image: Stitches Random Blocks ", 25, 625);
-	    g.drawImage(createRandomQuiltedImage(), 25, 640, sw, sh, this);
+	    g.drawImage(createRandomQuiltedImage(), 25, 640, pw, ph, this);
 
-        g.drawString("Quilted Image: Uses Steps From Research Paper", sw+75, 625);
-	    g.drawImage(createQuiltedImage2(), sw + 75, 640, sw, sh, this); 
+        g.drawString("Quilted Image: Uses Steps From Research Paper", sw+125, 625);
+	    g.drawImage(createQuiltedImage2(), sw + 125, 640, pw, ph, this); 
 
-        g.drawString("Quilted Image: Recreates Original Image By Comparing Brightness ", sw+pw+125, 625);
-	    g.drawImage(lumaCorrect(srcImage, recreatesrcImage(), lumaBlend), sw+pw+125, 640, sw, sh, this);
+        g.drawString("Quilted Image: Recreates Original Image By Comparing Brightness ", sw+pw+175, 625);
+	    g.drawImage(lumaCorrect(srcImage, recreatesrcImage(), lumaBlend), sw+pw+175, 640, sw, sh, this);
 
 	     
 	}
