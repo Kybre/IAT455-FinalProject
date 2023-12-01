@@ -378,49 +378,20 @@ class ImageQuilter extends JFrame implements ActionListener {
                     for (BufferedImage[] row : imageBlocks) {
                         for (BufferedImage block : row) {
                             double ssdLeft = 0.0, ssdTop = 0.0;
+                            
+                            int rotationCount = rotateBlocks ? 4 : 1;
 
-                            if (rotateBlocks) {
-                                for (int rotation = 0; rotation < 4; rotation++) {
-                                    // Rotate the block 90 degrees clockwise
+                            for (int rotation = 0; rotation < rotationCount; rotation++) {
+                                // Rotate block only if rotation is needed
+                                if (rotateBlocks) {
                                     block = rotateClockwise(block);
-                                    
-                                    if (x > 0) {  // Calculate SSD for left overlap
-                                        BufferedImage leftOverlap = getRightOverlap(selectedBlocks[y][x - 1]);
-                                        BufferedImage currentLeftOverlap = getLeftOverlap(block);
-                                        ssdLeft = calculateOverlapSSD(leftOverlap, currentLeftOverlap, leftOverlap.getWidth());
-                                    }
-                                    
-                                    if (y > 0) {  // Calculate SSD for top overlap
-                                        BufferedImage topOverlap = getBottomOverlap(selectedBlocks[y - 1][x]);
-                                        BufferedImage currentTopOverlap = getTopOverlap(block);
-                                        ssdTop = calculateOverlapSSD(topOverlap, currentTopOverlap, topOverlap.getHeight());
-                                    }
-                                    
-                                    double combinedSSD = ssdLeft + ssdTop;
-                                    
-                                    if (combinedSSD < minSSD * tolerance) {
-                                        if (combinedSSD < minSSD) {
-                                            minSSD = combinedSSD;
-                                            suitableBlocks.clear();
-                                        }
-                                        suitableBlocks.add(block);
-                                    }
                                 }
-                            } else {
-                                // No rotation, calculate SSD for the block in its original orientation
-                                if (x > 0) {  // Calculate SSD for left overlap
-                                    BufferedImage leftOverlap = getRightOverlap(selectedBlocks[y][x - 1]);
-                                    BufferedImage currentLeftOverlap = getLeftOverlap(block);
-                                    ssdLeft = calculateOverlapSSD(leftOverlap, currentLeftOverlap, leftOverlap.getWidth());
-                                }
-                                
-                                if (y > 0) {  // Calculate SSD for top overlap
-                                    BufferedImage topOverlap = getBottomOverlap(selectedBlocks[y - 1][x]);
-                                    BufferedImage currentTopOverlap = getTopOverlap(block);
-                                    ssdTop = calculateOverlapSSD(topOverlap, currentTopOverlap, topOverlap.getHeight());
-                                }
-                                
-                                double combinedSSD = ssdLeft + ssdTop;
+
+                                BufferedImage leftNeighbor = (x > 0) ? selectedBlocks[y][x - 1] : null;
+                                BufferedImage topNeighbor = (y > 0) ? selectedBlocks[y - 1][x] : null;
+
+                                double combinedSSD = calculateCombinedSSD(block, leftNeighbor, topNeighbor);
+
                                 if (combinedSSD < minSSD * tolerance) {
                                     if (combinedSSD < minSSD) {
                                         minSSD = combinedSSD;
@@ -452,7 +423,28 @@ class ImageQuilter extends JFrame implements ActionListener {
         return quiltedImage;
     }
 
+    
+    // Calculate overlap
+    private double calculateCombinedSSD(BufferedImage block, BufferedImage leftNeighbor, BufferedImage topNeighbor) {
+        double ssdLeft = 0.0, ssdTop = 0.0;
 
+        if (leftNeighbor != null) {
+            BufferedImage leftOverlap = getRightOverlap(leftNeighbor);
+            BufferedImage currentLeftOverlap = getLeftOverlap(block);
+            ssdLeft = calculateOverlapSSD(leftOverlap, currentLeftOverlap, leftOverlap.getWidth());
+        }
+
+        if (topNeighbor != null) {
+            BufferedImage topOverlap = getBottomOverlap(topNeighbor);
+            BufferedImage currentTopOverlap = getTopOverlap(block);
+            ssdTop = calculateOverlapSSD(topOverlap, currentTopOverlap, topOverlap.getHeight());
+        }
+
+        return ssdLeft + ssdTop;
+    }
+    
+    
+    
     // Rotate an image 90 degrees clockwise
     private BufferedImage rotateClockwise(BufferedImage image) {
         int width = image.getWidth();
@@ -488,10 +480,86 @@ class ImageQuilter extends JFrame implements ActionListener {
     }
     
     
-    
-    
-    
-    
+	
+	public void paint(Graphics g) {
+		super.paint(g);
+		
+	    g.setColor(Color.BLACK);
+	    Font f1 = new Font("Verdana", Font.PLAIN, 13); 
+	    g.setFont(f1); 
+		
+		patternButton.setBounds(25, 25, 125, 25);
+		patternButton.setBackground(Color.gray.brighter());
+		
+		srcButton.setBounds(175, 25, 125, 25);
+		srcButton.setBackground(Color.gray.brighter());
+		
+		g.drawString("Block Size:", 350, 70);
+		blockSizeText.setBounds(425, 25, 50, 25);
+		
+		g.drawString("Overlap %:", 500, 70);
+		overlapText.setBounds(575, 25, 50, 25);
+
+        g.drawString("Minimum Error Tolerance:", 35, 120);
+		initialToleranceText.setBounds(210, 75, 50, 25);
+
+        g.drawString("Error Tolerance Increment:", 285, 120);
+		toleranceIncrementText.setBounds(460, 75, 50, 25);
+
+        g.drawString("Maximum Error Tolerance:", 535, 120);
+		maxToleranceText.setBounds(710, 75, 50, 25);
+        
+		g.drawString("Brightness Blend %:", 785, 120);
+		lumaBlendText.setBounds(925, 75, 50, 25);
+
+        blockRotationButton.setBounds(screenSize.width - 550, 25, 250, 25);
+		
+		updateButton.setBounds(screenSize.width - 250, 25, 200, 25);
+		updateButton.setBackground(new Color(164,213,227));
+		
+		g.setColor(new Color(20,20,20));
+		g.drawLine(25, 150, (int)screenSize.getWidth()-25, 150);
+		
+		//images
+		int pw = patternImage.getWidth();
+		int ph = patternImage.getHeight();
+		
+		int sw = srcImage.getWidth();
+		int sh = srcImage.getHeight();
+		
+        g.drawString("Pattern", 25, 225); 
+		g.drawImage(patternImage, 25, 240, pw, ph, this);
+
+        g.drawString("Original Image", sw+75, 225); 
+	    g.drawImage(srcImage, sw+75, 240, sw, sh, this);
+
+        g.drawString("Quilted Image: Block Sorted By Brightness", sw+pw+125, 225); 
+	    g.drawImage(createQuiltedImage(), sw+pw+125, 240, sw, sh, this); 
+	    
+        g.drawString("Quilted Image: Stitches Random Blocks ", 25, 625);
+	    g.drawImage(createRandomQuiltedImage(), 25, 640, sw, sh, this);
+
+        g.drawString("Quilted Image: Uses Steps From Research Paper", sw+75, 625);
+	    g.drawImage(createQuiltedImage2(), sw + 75, 640, sw, sh, this); 
+
+        g.drawString("Quilted Image: Recreates Original Image By Comparing Brightness ", sw+pw+125, 625);
+	    g.drawImage(lumaCorrect(srcImage, recreatesrcImage(), lumaBlend), sw+pw+125, 640, sw, sh, this);
+
+	     
+	}
+
+	
+	public static void main(String[] args) {
+		// TODO Auto-generated method stub
+		ImageQuilter iq = new ImageQuilter();
+		iq.setVisible(true);
+		iq.repaint();
+	}
+	
+	
+	
+	
+
     
     // Start step 3
     // Code doesn't work but most of the implementation is accurate.
@@ -535,7 +603,6 @@ class ImageQuilter extends JFrame implements ActionListener {
         return stitched;
     }
 
-    
     
     
     private void findMinPath(double[][] dists, boolean allowHorizontal) {
