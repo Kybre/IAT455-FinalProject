@@ -699,25 +699,31 @@ class ImageQuilter extends JFrame implements ActionListener {
 		g.drawLine(25, 150, (int)screenSize.getWidth()-25, 150);
 		
 		//images
-		int sw = patternImage.getWidth();
-		int sh = patternImage.getHeight();
+		int pw = patternImage.getWidth();
+		int ph = patternImage.getHeight();
 		
-		int pw = srcImage.getWidth();
-		int ph = srcImage.getHeight();
+		int sw = srcImage.getWidth();
+		int sh = srcImage.getHeight();
 		
-		g.drawImage(patternImage, 25, 240, sw, sh, this);
-	    g.drawImage(srcImage, sw+75, 240, pw, ph, this);
+        g.drawString("Pattern", 25, 225); 
+		g.drawImage(patternImage, 25, 240, pw, ph, this);
+
+        g.drawString("Original Image", sw+75, 225); 
+	    g.drawImage(srcImage, sw+75, 240, sw, sh, this);
+
+        g.drawString("Quilted Image: Block Sorted By Brightness", sw+pw+125, 225); 
 	    g.drawImage(createQuiltedImage(), sw+pw+125, 240, sw, sh, this); 
 	    
-
+        g.drawString("Quilted Image: Stitches Random Blocks ", 25, 625);
 	    g.drawImage(createRandomQuiltedImage(), 25, 640, sw, sh, this);
+
+        g.drawString("Quilted Image: Uses Steps From Research Paper", sw+75, 625);
 	    g.drawImage(createQuiltedImage2(), sw + 75, 640, sw, sh, this); 
+
+        g.drawString("Quilted Image: Recreates Original Image By Comparing Brightness ", sw+pw+125, 625);
 	    g.drawImage(lumaCorrect(srcImage, recreatesrcImage(), lumaBlend), sw+pw+125, 640, sw, sh, this);
 
-	    
-	    g.drawString("Pattern", 25, 225); 
-	    g.drawString("Original Image", sw+75, 225); 
-	    g.drawString("Result", sw+pw+125, 225); 
+	     
 	}
 
 	
